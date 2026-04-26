@@ -1,0 +1,472 @@
+{
+  "info": {
+    "_postman_id": "2c6e5b2f-1bb5-4d6b-9b53-account-service",
+    "name": "NTT Bootcamp - Account Service via API Gateway",
+    "description": "Collection para probar account-service a traves de api-gateway. Ejecutar primero Auth / Login para guardar access_token.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": []
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": []
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "gateway_url",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "access_token",
+      "value": ""
+    },
+    {
+      "key": "customer_id",
+      "value": "69e984c3ea77252c2fd48d7c"
+    },
+    {
+      "key": "account_id",
+      "value": "69eaa991e7439a37a1dd72f6"
+    },
+    {
+      "key": "secondary_account_id",
+      "value": "REPLACE_WITH_SECONDARY_ACCOUNT_ID"
+    },
+    {
+      "key": "debit_card_id",
+      "value": "REPLACE_WITH_DEBIT_CARD_ID"
+    },
+    {
+      "key": "card_number",
+      "value": "4555-6666-7777-8888"
+    },
+    {
+      "key": "amount",
+      "value": "100.00"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login - Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login exitoso', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const response = pm.response.json();",
+                  "pm.collectionVariables.set('access_token', response.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/auth-service/auth/login",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth-service",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login - Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login exitoso', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const response = pm.response.json();",
+                  "pm.collectionVariables.set('access_token', response.accessToken);",
+                  "if (response.customerId) {",
+                  "  pm.collectionVariables.set('customer_id', response.customerId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"customer\",\n  \"password\": \"customer123\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/auth-service/auth/login",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "auth-service",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Accounts",
+      "item": [
+        {
+          "name": "Create Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Cuenta creada', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const response = pm.response.json();",
+                  "if (response.id) {",
+                  "  pm.collectionVariables.set('account_id', response.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customer_id}}\",\n  \"accountType\": \"SAVINGS\",\n  \"initialBalance\": 1000.00,\n  \"holders\": [],\n  \"signers\": []\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/account-service/api/v1/accounts",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "account-service",
+                "api",
+                "v1",
+                "accounts"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Products By Customer",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/account-service/api/v1/accounts/customer/{{customer_id}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "account-service",
+                "api",
+                "v1",
+                "accounts",
+                "customer",
+                "{{customer_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Account Balance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/account-service/api/v1/accounts/{{account_id}}/balance",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "account-service",
+                "api",
+                "v1",
+                "accounts",
+                "{{account_id}}",
+                "balance"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Deposit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": {{amount}}\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/account-service/api/v1/accounts/{{account_id}}/deposit",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "account-service",
+                "api",
+                "v1",
+                "accounts",
+                "{{account_id}}",
+                "deposit"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Withdraw",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": {{amount}}\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/account-service/api/v1/accounts/{{account_id}}/withdraw",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "account-service",
+                "api",
+                "v1",
+                "accounts",
+                "{{account_id}}",
+                "withdraw"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Compensate Deposit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": {{amount}}\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/account-service/api/v1/accounts/{{account_id}}/compensations/deposit",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "account-service",
+                "api",
+                "v1",
+                "accounts",
+                "{{account_id}}",
+                "compensations",
+                "deposit"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Debit Cards",
+      "item": [
+        {
+          "name": "Create Debit Card",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Tarjeta creada', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const response = pm.response.json();",
+                  "if (response.id) {",
+                  "  pm.collectionVariables.set('debit_card_id', response.id);",
+                  "}",
+                  "if (response.cardNumber) {",
+                  "  pm.collectionVariables.set('card_number', response.cardNumber);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customer_id}}\",\n  \"mainAccountId\": \"{{account_id}}\",\n  \"cardNumber\": \"{{card_number}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/account-service/api/v1/accounts/debit-card",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "account-service",
+                "api",
+                "v1",
+                "accounts",
+                "debit-card"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Link Secondary Account",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"secondaryAccountId\": \"{{secondary_account_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/account-service/api/v1/accounts/debit-card/{{debit_card_id}}/link-account",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "account-service",
+                "api",
+                "v1",
+                "accounts",
+                "debit-card",
+                "{{debit_card_id}}",
+                "link-account"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Debit Card By Number",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/account-service/api/v1/accounts/debit-cards/{{card_number}}",
+              "host": [
+                "{{gateway_url}}"
+              ],
+              "path": [
+                "account-service",
+                "api",
+                "v1",
+                "accounts",
+                "debit-cards",
+                "{{card_number}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

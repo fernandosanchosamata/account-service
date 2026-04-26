@@ -1,0 +1,95 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: account-service
+  config:
+    import: "optional:configserver:http://localhost:8888"
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/ntt_account
+      auto-index-creation: true
+    redis:
+      host: localhost
+      port: 6379
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      creditService:
+        slidingWindowSize: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+  timelimiter:
+    instances:
+      creditService:
+        timeoutDuration: 2s
+
+account:
+  clients:
+    timeout: 2s
+  rules:
+    cache-ttl: 12h
+    definitions:
+      "[SAVINGS:PERSONAL:REGULAR]":
+        max-owned-accounts: 1
+        max-free-transactions: 20
+        extra-transaction-fee: 5.00
+        maintenance-fee: 0.00
+        requires-active-credit-card: false
+        currency: PEN
+      "[SAVINGS:PERSONAL:VIP]":
+        max-owned-accounts: 1
+        max-free-transactions: 20
+        extra-transaction-fee: 5.00
+        maintenance-fee: 0.00
+        requires-active-credit-card: true
+        min-average-daily-balance: 1000.00
+        currency: PEN
+      "[CHECKING:PERSONAL:REGULAR]":
+        max-owned-accounts: 1
+        max-free-transactions: -1
+        extra-transaction-fee: 0.00
+        maintenance-fee: 25.00
+        requires-active-credit-card: false
+        currency: PEN
+      "[CHECKING:PERSONAL:VIP]":
+        max-owned-accounts: 1
+        max-free-transactions: -1
+        extra-transaction-fee: 0.00
+        maintenance-fee: 0.00
+        requires-active-credit-card: true
+        currency: PEN
+      "[FIXED_TERM:PERSONAL:REGULAR]":
+        max-free-transactions: 1
+        extra-transaction-fee: 0.00
+        maintenance-fee: 0.00
+        allowed-transaction-day: 15
+        requires-active-credit-card: false
+        currency: PEN
+      "[FIXED_TERM:PERSONAL:VIP]":
+        max-free-transactions: 1
+        extra-transaction-fee: 0.00
+        maintenance-fee: 0.00
+        allowed-transaction-day: 15
+        requires-active-credit-card: true
+        currency: PEN
+      "[CHECKING:EMPRESARIAL:REGULAR]":
+        max-free-transactions: -1
+        extra-transaction-fee: 0.00
+        maintenance-fee: 25.00
+        requires-active-credit-card: false
+        currency: PEN
+      "[CHECKING:EMPRESARIAL:PYME]":
+        max-free-transactions: -1
+        extra-transaction-fee: 0.00
+        maintenance-fee: 0.00
+        requires-active-credit-card: true
+        currency: PEN
