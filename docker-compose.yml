@@ -1,0 +1,23 @@
+services:
+  account-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: account-service:latest
+    container_name: ntt_account_service
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/ntt_account
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - ntt_network
+
+networks:
+  ntt_network:
+    external: true
+    name: infra_ntt_network

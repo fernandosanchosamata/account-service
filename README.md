@@ -75,53 +75,35 @@ java -jar .\target\account-service-0.0.1-SNAPSHOT.jar
 
 ## Levantar con Docker
 
-Primero se debe levantar la infraestructura desde el repositorio o ruta de
-infraestructura:
-
-```text
-https://github.com/fernandosanchosamata/infra
-```
-
-Ejemplo:
+Primero levantar la infraestructura desde la raiz del repositorio:
 
 ```powershell
 cd .\infra
-docker compose up -d
+docker compose up -d --build
 ```
 
-La infraestructura debe dejar disponibles MongoDB, Redis, Config Server y Eureka.
-La forma recomendada es ejecutar `account-service` dentro del mismo entorno Docker
-Compose para que use nombres de servicio en la red Docker.
+El `docker-compose.yml` de este microservicio usa la red externa
+`infra_ntt_network`, creada por el compose de infraestructura, y se conecta a
+MongoDB, Redis, Config Server y Eureka usando nombres internos de Docker.
 
-Construir imagen de `account-service`:
+Generar el jar y levantar el contenedor:
 
 ```powershell
-cd .\account-service
+cd ..\account-service
 mvn clean package
-docker build -t account-service .
+docker compose up -d --build
 ```
 
-Si se ejecuta como contenedor separado con `docker run`, usar
-`host.docker.internal` para conectarse a la infraestructura publicada en el host:
+Ver logs:
 
 ```powershell
-docker run --rm --name account-service -p 8083:8083 `
-  -e SPRING_CONFIG_IMPORT=optional:configserver:http://host.docker.internal:8888 `
-  -e SPRING_DATA_MONGODB_URI=mongodb://host.docker.internal:27017/ntt_account `
-  -e SPRING_DATA_REDIS_HOST=host.docker.internal `
-  -e SPRING_DATA_REDIS_PORT=6379 `
-  -e EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://host.docker.internal:8761/eureka/ `
-  account-service
+docker compose logs -f account-service
 ```
 
-Si se ejecuta dentro del mismo Docker Compose que la infraestructura, usar nombres
-de servicio:
+Detener el microservicio:
 
-```text
-MongoDB: mongodb://mongodb:27017/ntt_account
-Redis: redis:6379
-Config Server: http://config-server:8888
-Eureka: http://eureka-server:8761/eureka/
+```powershell
+docker compose down
 ```
 
 ## Tests
