@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import com.ntt.account.model.dto.AccountCreationRequest;
 import com.ntt.account.model.dto.CustomerProductsResponse;
 import com.ntt.account.model.dto.DebitCardCreationRequest;
+import com.ntt.account.model.dto.LinkAccountRequest;
 import com.ntt.account.model.dto.TransactionRequest;
 import com.ntt.account.model.entity.Account;
 import com.ntt.account.model.entity.DebitCard;
@@ -45,6 +46,18 @@ class AccountControllerTest {
   }
 
   @Test
+  void getAccountBalanceReturnsOkResponse() {
+    Account account = account();
+    when(accountService.getAccountBalance("account-1")).thenReturn(Single.just(account));
+
+    var result = controller.getAccountBalance("account-1").blockingGet();
+
+    assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(result.getBody()).isEqualTo(account);
+    verify(accountService).getAccountBalance("account-1");
+  }
+
+  @Test
   void depositDelegatesToServiceAndReturnsOkResponse() {
     TransactionRequest request = new TransactionRequest();
     request.setAmount(BigDecimal.valueOf(50));
@@ -60,6 +73,36 @@ class AccountControllerTest {
   }
 
   @Test
+  void withdrawDelegatesToServiceAndReturnsOkResponse() {
+    TransactionRequest request = new TransactionRequest();
+    request.setAmount(BigDecimal.valueOf(25));
+    Account account = account();
+    account.setBalance(BigDecimal.valueOf(75));
+    when(accountService.withdraw("account-1", request)).thenReturn(Single.just(account));
+
+    var result = controller.withdraw("account-1", request).blockingGet();
+
+    assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(result.getBody()).isEqualTo(account);
+    verify(accountService).withdraw("account-1", request);
+  }
+
+  @Test
+  void compensateDepositDelegatesToServiceAndReturnsOkResponse() {
+    TransactionRequest request = new TransactionRequest();
+    request.setAmount(BigDecimal.valueOf(40));
+    Account account = account();
+    account.setBalance(BigDecimal.valueOf(140));
+    when(accountService.compensateDeposit("account-1", request)).thenReturn(Single.just(account));
+
+    var result = controller.compensateDeposit("account-1", request).blockingGet();
+
+    assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(result.getBody()).isEqualTo(account);
+    verify(accountService).compensateDeposit("account-1", request);
+  }
+
+  @Test
   void createDebitCardReturnsCreatedResponse() {
     DebitCardCreationRequest request = new DebitCardCreationRequest();
     request.setCustomerId("customer-1");
@@ -72,6 +115,33 @@ class AccountControllerTest {
 
     assertThat(result.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     assertThat(result.getBody()).isEqualTo(card);
+  }
+
+  @Test
+  void linkAccountDelegatesToServiceAndReturnsOkResponse() {
+    LinkAccountRequest request = new LinkAccountRequest();
+    request.setSecondaryAccountId("account-2");
+    DebitCard card = debitCard();
+    card.getSecondaryAccountIds().add("account-2");
+    when(accountService.linkAccount("card-1", request)).thenReturn(Single.just(card));
+
+    var result = controller.linkAccount("card-1", request).blockingGet();
+
+    assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(result.getBody()).isEqualTo(card);
+    verify(accountService).linkAccount("card-1", request);
+  }
+
+  @Test
+  void getDebitCardByNumberReturnsOkResponse() {
+    DebitCard card = debitCard();
+    when(accountService.getDebitCardByNumber("4555-6666-7777-8888")).thenReturn(Single.just(card));
+
+    var result = controller.getDebitCardByNumber("4555-6666-7777-8888").blockingGet();
+
+    assertThat(result.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(result.getBody()).isEqualTo(card);
+    verify(accountService).getDebitCardByNumber("4555-6666-7777-8888");
   }
 
   @Test
