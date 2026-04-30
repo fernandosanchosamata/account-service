@@ -41,10 +41,21 @@ public class AccountServiceImpl implements AccountService {
 
   @Override
   public Single<Account> createAccount(AccountCreationRequest request) {
+    log.info(
+        "Iniciando creacion de cuenta. customerId={}, accountType={}",
+        request.getCustomerId(),
+        request.getAccountType());
     return customerClient
         .getCustomerSummary(request.getCustomerId())
         .flatMap(
             customer -> {
+              log.debug(
+                  "Cliente validado para creacion de cuenta. customerId={}, status={}, type={},"
+                      + " profile={}",
+                  customer.getId(),
+                  customer.getStatus(),
+                  customer.getType(),
+                  resolveProfile(customer.getProfile()));
               validateActiveCustomer(customer);
               validateBusinessRulesForAccountCreation(request, customer);
 
@@ -53,6 +64,9 @@ public class AccountServiceImpl implements AccountService {
                   .flatMap(
                       hasDebt -> {
                         if (Boolean.TRUE.equals(hasDebt)) {
+                          log.warn(
+                              "Creacion de cuenta rechazada por deuda vencida. customerId={}",
+                              request.getCustomerId());
                           return Single.error(
                               new IllegalArgumentException(
                                   "No se puede crear la cuenta. El cliente mantiene deuda vencida."));
@@ -96,13 +110,17 @@ public class AccountServiceImpl implements AccountService {
 
   @Override
   public Single<Account> getAccountBalance(String accountId) {
+    log.info("Consultando saldo de cuenta. accountId={}", accountId);
     return accountRepository
         .findById(accountId)
-        .switchIfEmpty(Single.error(new IllegalArgumentException("Cuenta no encontrada.")));
+        .switchIfEmpty(Single.error(new IllegalArgumentException("Cuenta no encontrada.")))
+        .doOnSuccess(account -> log.info("Saldo de cuenta consultado. accountId={}", accountId))
+        .doOnError(error -> log.warn("Consulta de saldo fallida. accountId={}", accountId));
   }
 
   @Override
   public Single<Account> deposit(String accountId, TransactionRequest request) {
+    log.info("Iniciando deposito. accountId={}, amount={}", accountId, request.getAmount());
     return accountRepository
         .findById(accountId)
         .switchIfEmpty(Single.error(new IllegalArgumentException("Cuenta no encontrada.")))
@@ -122,6 +140,9 @@ public class AccountServiceImpl implements AccountService {
                               account.getBalance().add(request.getAmount()).subtract(fee);
 
                           if (resultingBalance.compareTo(BigDecimal.ZERO) < 0) {
+                            log.warn(
+                                "Deposito rechazado porque no cubre comision. accountId={}",
+                                accountId);
                             return Single.error(
                                 new IllegalArgumentException(
                                     "El deposito no cubre la comision configurada para esta cuenta."));
@@ -132,12 +153,20 @@ public class AccountServiceImpl implements AccountService {
                           account.setTransactionCycle(currentTransactionCycle());
                           account.setLastTransactionDate(LocalDate.now());
 
-                          return accountRepository.save(account);
+                          return accountRepository
+                              .save(account)
+                              .doOnSuccess(
+                                  saved ->
+                                      log.info(
+                                          "Deposito guardado. accountId={}, transactionCount={}",
+                                          saved.getId(),
+                                          saved.getTransactionCount()));
                         }));
   }
 
   @Override
   public Single<Account> withdraw(String accountId, TransactionRequest request) {
+    log.info("Iniciando retiro. accountId={}, amount={}", accountId, request.getAmount());
     return accountRepository
         .findById(accountId)
         .switchIfEmpty(Single.error(new IllegalArgumentException("Cuenta no encontrada.")))
@@ -156,6 +185,8 @@ public class AccountServiceImpl implements AccountService {
                           BigDecimal totalDeduction = request.getAmount().add(fee);
 
                           if (account.getBalance().compareTo(totalDeduction) < 0) {
+                            log.warn(
+                                "Retiro rechazado por saldo insuficiente. accountId={}", accountId);
                             return Single.error(
                                 new IllegalArgumentException(
                                     "Saldo insuficiente para el retiro solicitado."));
@@ -166,30 +197,50 @@ public class AccountServiceImpl implements AccountService {
                           account.setTransactionCycle(currentTransactionCycle());
                           account.setLastTransactionDate(LocalDate.now());
 
-                          return accountRepository.save(account);
+                          return accountRepository
+                              .save(account)
+                              .doOnSuccess(
+                                  saved ->
+                                      log.info(
+                                          "Retiro guardado. accountId={}, transactionCount={}",
+                                          saved.getId(),
+                                          saved.getTransactionCount()));
                         }));
   }
 
   @Override
   public Single<Account> compensateDeposit(String accountId, TransactionRequest request) {
+    log.info("Iniciando compensacion de deposito. accountId={}", accountId);
     return accountRepository
         .findById(accountId)
         .switchIfEmpty(Single.error(new IllegalArgumentException("Cuenta no encontrada.")))
         .flatMap(
             account -> {
               account.setBalance(account.getBalance().add(request.getAmount()));
-              return accountRepository.save(account);
+              return accountRepository
+                  .save(account)
+                  .doOnSuccess(
+                      saved -> log.info("Compensacion guardada. accountId={}", saved.getId()));
             });
   }
 
   @Override
   public Single<DebitCard> createDebitCard(DebitCardCreationRequest request) {
+    log.info(
+        "Iniciando creacion de tarjeta de debito. customerId={}, mainAccountId={}",
+        request.getCustomerId(),
+        request.getMainAccountId());
     return accountRepository
         .findById(request.getMainAccountId())
         .switchIfEmpty(Single.error(new IllegalArgumentException("Cuenta principal no existe.")))
         .flatMap(
             account -> {
               if (!account.getCustomerId().equals(request.getCustomerId())) {
+                log.warn(
+                    "Creacion de tarjeta rechazada por propiedad de cuenta. customerId={},"
+                        + " mainAccountId={}",
+                    request.getCustomerId(),
+                    request.getMainAccountId());
                 return Single.error(
                     new IllegalArgumentException(
                         "La cuenta principal no pertenece al cliente indicado."));
@@ -210,17 +261,31 @@ public class AccountServiceImpl implements AccountService {
                   .flatMap(
                       isEmpty -> {
                         if (!isEmpty) {
+                          log.warn(
+                              "Creacion de tarjeta rechazada por numero duplicado. customerId={}",
+                              request.getCustomerId());
                           return Single.error(
                               new IllegalArgumentException(
                                   "El numero de tarjeta de debito ya existe."));
                         }
-                        return debitCardRepository.save(card);
+                        return debitCardRepository
+                            .save(card)
+                            .doOnSuccess(
+                                saved ->
+                                    log.info(
+                                        "Tarjeta de debito guardada. cardId={}, customerId={}",
+                                        saved.getId(),
+                                        saved.getCustomerId()));
                       });
             });
   }
 
   @Override
   public Single<DebitCard> linkAccount(String cardId, LinkAccountRequest request) {
+    log.info(
+        "Iniciando vinculacion de cuenta secundaria. cardId={}, secondaryAccountId={}",
+        cardId,
+        request.getSecondaryAccountId());
     return debitCardRepository
         .findById(cardId)
         .switchIfEmpty(Single.error(new IllegalArgumentException("Tarjeta de debito no existe.")))
@@ -233,6 +298,11 @@ public class AccountServiceImpl implements AccountService {
                     .flatMap(
                         account -> {
                           if (!account.getCustomerId().equals(card.getCustomerId())) {
+                            log.warn(
+                                "Vinculacion rechazada por cliente distinto. cardId={},"
+                                    + " secondaryAccountId={}",
+                                cardId,
+                                request.getSecondaryAccountId());
                             return Single.error(
                                 new IllegalArgumentException(
                                     "Solo se pueden vincular cuentas del mismo cliente."));
@@ -240,6 +310,11 @@ public class AccountServiceImpl implements AccountService {
 
                           if (card.getMainAccountId().equals(account.getId())
                               || card.getSecondaryAccountIds().contains(account.getId())) {
+                            log.warn(
+                                "Vinculacion rechazada por cuenta ya vinculada. cardId={},"
+                                    + " accountId={}",
+                                cardId,
+                                account.getId());
                             return Single.error(
                                 new IllegalArgumentException(
                                     "La cuenta ya se encuentra vinculada a esta tarjeta."));
@@ -250,16 +325,26 @@ public class AccountServiceImpl implements AccountService {
                           }
 
                           card.getSecondaryAccountIds().add(account.getId());
-                          return debitCardRepository.save(card);
+                          return debitCardRepository
+                              .save(card)
+                              .doOnSuccess(
+                                  saved ->
+                                      log.info(
+                                          "Cuenta vinculada correctamente. cardId={}, accountId={}",
+                                          saved.getId(),
+                                          account.getId()));
                         }));
   }
 
   @Override
   public Single<DebitCard> getDebitCardByNumber(String cardNumber) {
+    log.info("Consultando tarjeta de debito por numero.");
     return debitCardRepository
         .findByCardNumber(cardNumber)
         .switchIfEmpty(
-            Single.error(new IllegalArgumentException("Tarjeta de debito no encontrada.")));
+            Single.error(new IllegalArgumentException("Tarjeta de debito no encontrada.")))
+        .doOnSuccess(card -> log.info("Tarjeta encontrada. cardId={}", card.getId()))
+        .doOnError(error -> log.warn("Consulta de tarjeta por numero fallida."));
   }
 
   private void validateActiveCustomer(CustomerSummaryResponse customer) {

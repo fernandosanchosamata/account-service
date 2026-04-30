@@ -22,12 +22,19 @@ public class CreditClient {
   @CircuitBreaker(name = "creditService", fallbackMethod = "fallbackHasOverdueDebtMono")
   @TimeLimiter(name = "creditService")
   public Mono<Boolean> hasOverdueDebtMono(String customerId) {
+    log.debug("Consultando deuda vencida. customerId={}", customerId);
     return webClientBuilder
         .build()
         .get()
         .uri(CREDIT_SERVICE_URL + "/customer/{customerId}/has-overdue-debt", customerId)
         .retrieve()
-        .bodyToMono(Boolean.class);
+        .bodyToMono(Boolean.class)
+        .doOnSuccess(
+            hasDebt ->
+                log.debug(
+                    "Respuesta de deuda vencida recibida. customerId={}, hasDebt={}",
+                    customerId,
+                    hasDebt));
   }
 
   public Mono<Boolean> fallbackHasOverdueDebtMono(String customerId, Throwable t) {
@@ -46,12 +53,19 @@ public class CreditClient {
   @CircuitBreaker(name = "creditService", fallbackMethod = "fallbackHasActiveCreditCardMono")
   @TimeLimiter(name = "creditService")
   public Mono<Boolean> hasActiveCreditCardMono(String customerId) {
+    log.debug("Consultando tarjeta de credito activa. customerId={}", customerId);
     return webClientBuilder
         .build()
         .get()
         .uri(CREDIT_SERVICE_URL + "/customer/{customerId}/has-active-credit-card", customerId)
         .retrieve()
-        .bodyToMono(Boolean.class);
+        .bodyToMono(Boolean.class)
+        .doOnSuccess(
+            hasCard ->
+                log.debug(
+                    "Respuesta de tarjeta de credito activa recibida. customerId={}, hasCard={}",
+                    customerId,
+                    hasCard));
   }
 
   public Mono<Boolean> fallbackHasActiveCreditCardMono(String customerId, Throwable t) {

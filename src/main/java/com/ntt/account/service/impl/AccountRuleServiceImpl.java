@@ -32,12 +32,14 @@ public class AccountRuleServiceImpl implements AccountRuleService {
     String redisKey = REDIS_KEY_PREFIX + definitionKey;
 
     return RxJava3Adapter.monoToMaybe(accountRuleRedisOperations.opsForValue().get(redisKey))
-        .switchIfEmpty(loadFromProperties(definitionKey, redisKey));
+        .switchIfEmpty(loadFromProperties(definitionKey, redisKey))
+        .doOnSuccess(rule -> log.debug("ACCOUNT_RULES resuelta. key={}", redisKey));
   }
 
   private Single<AccountRuleDefinition> loadFromProperties(String definitionKey, String redisKey) {
     AccountRuleDefinition definition = accountRulesProperties.getDefinitions().get(definitionKey);
     if (definition == null) {
+      log.warn("No existe configuracion ACCOUNT_RULES. key={}", definitionKey);
       return Single.error(
           new IllegalArgumentException(
               "No existe configuracion ACCOUNT_RULES para la combinacion " + definitionKey + "."));
